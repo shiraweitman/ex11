@@ -1,18 +1,27 @@
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Set;
 
 /**
  * compile the jack file according to the jack grammar
  */
 class CompilationEngine {
+
+    private static final String ARGUMENT = "argument";
+
     private BufferedWriter bufferedWriter;
     private JackTokenizer tokenizer;
     private ArrayList<String> operations = new ArrayList<>();
     private boolean minusOpFlag;
+    private SymbolTable symbolTable;
+    private String stKeyword;
+    private String stType;
 
 
     CompilationEngine(File inputFile, File outputFile) throws IOException {
         minusOpFlag = false;
+        this.symbolTable = new SymbolTable();
         this.tokenizer = new JackTokenizer(inputFile);
         FileWriter fileWriter = new FileWriter(outputFile);
         this.bufferedWriter = new BufferedWriter(fileWriter);
@@ -62,6 +71,7 @@ class CompilationEngine {
         writeToken("keyword", tokenizer.currentToken); // write "class"
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // write the class name
+        this.symbolTable.className = tokenizer.currentToken;
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
         tokenizer.advance();
@@ -75,6 +85,11 @@ class CompilationEngine {
         writeLine("</class>");
         tokenizer.bufferedReader.close();
         this.bufferedWriter.close();
+
+//        Set<String> keys = this.symbolTable.classTable.keySet();
+//        for(String key: keys){
+//            System.out.println(key + " " + Arrays.toString(this.symbolTable.classTable.get(key).toArray()));
+//        }
     }
 
     /**
@@ -82,7 +97,18 @@ class CompilationEngine {
      */
     private void CompileClassVarDec() throws IOException {
         writeLine("<classVarDec>");
-        varDecHelper();
+        writeToken("keyword", tokenizer.currentToken); // write static/field
+        this.stKeyword = tokenizer.currentToken;
+        tokenizer.advance();
+        checkType(); // write the var type
+        this.stType = tokenizer.currentToken;
+        tokenizer.advance();
+        writeToken("identifier", tokenizer.currentToken); // the var name
+        this.symbolTable.define(tokenizer.currentToken, this.stType, this.stKeyword);
+        tokenizer.advance();
+        checkMoreVars();
+        writeToken("symbol", tokenizer.currentToken); // write ;
+        tokenizer.advance();
         writeLine("</classVarDec>");
     }
 
@@ -93,16 +119,20 @@ class CompilationEngine {
         writeLine("<parameterList>");
         if(!tokenizer.currentToken.equals(")")){ // not empty
             checkType(); // write the var type
+            this.stType = tokenizer.currentToken;
             tokenizer.advance();
             writeToken("identifier", tokenizer.currentToken); // write the var name
+            this.symbolTable.define(tokenizer.currentToken, this.stType, ARGUMENT);
             tokenizer.advance();
             while (true){
                 if(tokenizer.currentToken.equals(",")){
                     writeToken("symbol", tokenizer.currentToken); // write ","
                     tokenizer.advance(); //advance to the expression after the comma
                     checkType(); // write the var type
+                    this.stType = tokenizer.currentToken;
                     tokenizer.advance();
                     writeToken("identifier", tokenizer.currentToken); // write the var name
+                    this.symbolTable.define(tokenizer.currentToken, this.stType, ARGUMENT);
                     tokenizer.advance();
                 } else {
                     break;
@@ -118,21 +148,21 @@ class CompilationEngine {
      */
     private void compileVarDec() throws IOException {
         writeLine("<varDec>");
-        varDecHelper();
-        writeLine("</varDec>");
-    }
-
-    private void varDecHelper() throws IOException {
-        writeToken("keyword", tokenizer.currentToken); // write var/static/field
+        writeToken("keyword", tokenizer.currentToken); // write var
+        this.stKeyword = tokenizer.currentToken;
         tokenizer.advance();
         checkType(); // write the var type
+        this.stType = tokenizer.currentToken;
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // the var name
+        this.symbolTable.define(tokenizer.currentToken, this.stType, this.stKeyword);
         tokenizer.advance();
         checkMoreVars();
         writeToken("symbol", tokenizer.currentToken); // write ;
         tokenizer.advance();
+        writeLine("</varDec>");
     }
+
 
     /**
      * check id the given type is primitive or nor
@@ -152,9 +182,10 @@ class CompilationEngine {
     private void checkMoreVars() throws IOException {
         while (!tokenizer.currentToken.equals(";")){
             if(tokenizer.currentToken.equals(",")){
-                writeToken("symbol", tokenizer.currentToken);
+                writeToken("symbol", tokenizer.currentToken); // write ","
             } else {
-                writeToken("identifier", tokenizer.currentToken);
+                writeToken("identifier", tokenizer.currentToken); // write varName
+                this.symbolTable.define(tokenizer.currentToken, this.stType, this.stKeyword);
             }
             tokenizer.advance();
         }
@@ -453,6 +484,7 @@ class CompilationEngine {
      * compile the subroutine decleration
      */
     private void compileSubroutineDec() throws IOException {
+        symbolTable.startSubroutine();
         writeLine("<subroutineDec>");
         writeToken("keyword", tokenizer.currentToken); // write constructor/function/method
         tokenizer.advance();
@@ -472,8 +504,11 @@ class CompilationEngine {
         compileSubroutineBody();
 
         writeLine("</subroutineDec>");
-
+        Set<String> keys = this.symbolTable.subroutineTable.keySet();
+        for(String key: keys){
+            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
+        }
     }
 
 
-    }
+}

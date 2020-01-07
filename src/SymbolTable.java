@@ -8,12 +8,14 @@ public class SymbolTable {
     private int fieldCounter;
     private int argsCounter;
     private int varCounter;
+    String className;
 
     /**
      * Creates a new empty symbol table
      */
     SymbolTable(){
         this.classTable = new Hashtable<>();
+        this.subroutineTable = new Hashtable<>();
     }
 
     /**
@@ -23,6 +25,11 @@ public class SymbolTable {
         this.varCounter = 0;
         this.argsCounter = 0;
         this.subroutineTable = new Hashtable<>();
+        ArrayList<String> varDetails = new ArrayList<>();
+        varDetails.add(this.className);
+        varDetails.add("argument");
+        varDetails.add("0");
+        this.subroutineTable.put("this", varDetails);
     }
 
     /**
@@ -61,6 +68,7 @@ public class SymbolTable {
             }
         }
     }
+
 
 
     /**
