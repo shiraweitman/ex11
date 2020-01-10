@@ -11,6 +11,11 @@ public class VMWriter {
         this.bufferedWriter = new BufferedWriter(fileWriter);
     }
 
+    public void writeCommand(Command command) throws IOException {
+        bufferedWriter.write(String.valueOf(command));
+        bufferedWriter.newLine();
+    }
+
     public void writePush(Segment segment, int index){}
 
     public void writePop(Segment segment, int index){}

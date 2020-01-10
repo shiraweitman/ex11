@@ -14,14 +14,18 @@ class CompilationEngine {
     private JackTokenizer tokenizer;
     private ArrayList<String> operations = new ArrayList<>();
     private boolean minusOpFlag;
+    private boolean arraysFlag;
     private SymbolTable symbolTable;
     private String stKeyword;
     private String stType;
+    private VMWriter vmWriter;
+    private ArrayList<String> arraysExp = new ArrayList<>();
 
 
     CompilationEngine(File inputFile, File outputFile) throws IOException {
         minusOpFlag = false;
         this.symbolTable = new SymbolTable();
+        this.vmWriter = new VMWriter(outputFile);
         this.tokenizer = new JackTokenizer(inputFile);
         FileWriter fileWriter = new FileWriter(outputFile);
         this.bufferedWriter = new BufferedWriter(fileWriter);
@@ -237,27 +241,49 @@ class CompilationEngine {
     }
 
     /**
-     * compile compile statement
+     * compile let statement
      */
     private void compileLet() throws IOException {
         writeLine("<letStatement>");
+        boolean arrayFlag = false;
         writeToken("keyword", tokenizer.currentToken); // write "let"
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // the var name
+        String var = tokenizer.currentToken;
+
         tokenizer.advance();
         if (!tokenizer.currentToken.equals("=")){
+            arrayFlag = true;
+            this.arraysFlag = true;
+            writePushVar(var);
+
             writeToken("symbol", tokenizer.currentToken); // write: "["
+
             tokenizer.advance();
             CompileExpression();
+
+            writeOperation(tokenizer.currentToken); // add the values
+
             writeToken("symbol", tokenizer.currentToken); // write: "]"
             tokenizer.advance();
         }
         writeToken("symbol", tokenizer.currentToken); // write: =
+
         tokenizer.advance();
-        CompileExpression();
+//        CompileExpression();
+        if(arrayFlag && !this.arraysFlag){
+            vmWriter.writePop(Segment.POINTER, 1);
+            CompileExpression();
+            vmWriter.writePop(Segment.THAT, 0);
+        } else {
+            writePopVar(var);
+        }
+
         writeToken("symbol", tokenizer.currentToken); // write: ;
         tokenizer.advance();
         writeLine("</letStatement>");
+
+        // todo reset flag?
 
     }
 
@@ -346,6 +372,9 @@ class CompilationEngine {
             if(tokenizer.currentToken.equals("-")){
                 this.minusOpFlag = true;
             }
+
+            writeOperation(tokenizer.currentToken);
+
             writeToken("symbol", tokenizer.currentToken); // write operation
             tokenizer.advance();
 
@@ -357,6 +386,73 @@ class CompilationEngine {
         writeLine("</expression>");
     }
 
+    private void writeOperation(String token) throws IOException {
+        switch (token){
+            case "*":
+                vmWriter.writeCall("Math.multiply", 2);
+            case "/":
+                vmWriter.writeCall("Math.divide", 2);
+            default:
+                Command command = findOperation(token);
+                vmWriter.writeCommand(command);
+        }
+    }
+
+    private Command findOperation(String op){
+        switch (op){
+            case "+":
+                return Command.ADD;
+            case "<":
+                return Command.LT;
+            case ">":
+                return Command.GT;
+            case "-":
+                return Command.SUB;
+            case "&":
+                return Command.AND;
+            case "|":
+                return Command.OR;
+            default: // we assume correct input, write "="
+                return Command.EQ;
+        }
+    }
+
+    private void writePushVar(String token){
+        String kind = symbolTable.kindOf(token);
+        int index = symbolTable.indexOf(token);
+        switch (kind){
+            case "static":
+                vmWriter.writePush(Segment.STATIC, index);
+
+            case "field":
+                vmWriter.writePush(Segment.THIS, index);
+
+            case "argument":
+                vmWriter.writePush(Segment.ARG, index);
+
+            case "var":
+                vmWriter.writePush(Segment.LOCAL, index);
+        }
+    }
+
+    private void writePopVar(String token){
+        String kind = symbolTable.kindOf(token);
+        int index = symbolTable.indexOf(token);
+        switch (kind){
+            case "static":
+                vmWriter.writePop(Segment.STATIC, index);
+
+            case "field":
+                vmWriter.writePop(Segment.THIS, index);
+
+            case "argument":
+                vmWriter.writePop(Segment.ARG, index);
+
+            case "var":
+                vmWriter.writePop(Segment.LOCAL, index);
+        }
+    }
+
     /**
      * compile single term
      * @param firstToken the token before the current
@@ -366,15 +462,21 @@ class CompilationEngine {
         writeLine("<term>");
         switch (firstTokenType){
             case INT_CONST:
+
+                vmWriter.writePush(Segment.CONST, Integer.parseInt(firstToken));
+
                 writeToken("integerConstant", firstToken);
                 break;
             case STRING_CONST:
+                // todo check this case
                 writeToken("stringConstant", firstToken);
                 break;
             case KEYWORD:
                 writeToken("keyword", firstToken);
                 break;
             case IDENTIFIER:
+                writePushVar(firstToken);
+
                 writeToken("identifier", firstToken); // varName
                 if(tokenizer.currentToken.equals("[")){
                     writeToken("symbol", tokenizer.currentToken); // write "["
@@ -401,6 +503,8 @@ class CompilationEngine {
                     tokenizer.advance();
 
                 } else if(firstToken.equals("~")) {// check if "~"
+                    vmWriter.writeCommand(Command.NOT);
+
                     writeToken("symbol", firstToken); // write "~"
                     JackTokenizer.TOKEN_TYPE tildaTokenType = tokenizer.currentTokenType;
                     String tildaNextToken = tokenizer.currentToken;
@@ -408,6 +512,9 @@ class CompilationEngine {
                     CompileTerm(tildaNextToken, tildaTokenType); // recursive call
 
                 } else if(firstToken.equals("-") && !this.minusOpFlag) {// check if "-"
+
+                    vmWriter.writeCommand(Command.NEG);
+
                     writeToken("symbol", firstToken); // write "-"
                     ///
                     JackTokenizer.TOKEN_TYPE tildaTokenType = tokenizer.currentTokenType;
@@ -464,6 +571,7 @@ class CompilationEngine {
      * write subroutine call
      */
     private void compileSubroutineCall() throws IOException {
+        // todo handle this case
 
         if(tokenizer.currentToken.equals("(")){
 
