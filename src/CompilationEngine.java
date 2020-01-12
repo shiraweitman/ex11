@@ -15,6 +15,7 @@ class CompilationEngine {
     private ArrayList<String> operations = new ArrayList<>();
     private boolean minusOpFlag;
     private boolean arraysFlag;
+    private boolean arrFlag;
     private SymbolTable symbolTable;
     private String stKeyword;
     private String stType;
@@ -417,7 +418,7 @@ class CompilationEngine {
         }
     }
 
-    private void writePushVar(String token){
+    private void writePushVar(String token) throws IOException {
         String kind = symbolTable.kindOf(token);
         int index = symbolTable.indexOf(token);
         switch (kind){
@@ -435,7 +436,7 @@ class CompilationEngine {
         }
     }
 
-    private void writePopVar(String token){
+    private void writePopVar(String token) throws IOException {
         String kind = symbolTable.kindOf(token);
         int index = symbolTable.indexOf(token);
         switch (kind){
