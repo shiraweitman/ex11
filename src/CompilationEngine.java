@@ -27,6 +27,7 @@ class CompilationEngine {
     private boolean isMethod;
     private boolean lastOpFlg;
     private ArrayList<String> opsArr = new ArrayList<>();
+    private boolean whileFlag;
 
     CompilationEngine(File inputFile, File outputFile, File vmOutputFile) throws IOException {
         minusOpFlag = false;
@@ -310,8 +311,12 @@ class CompilationEngine {
      */
     private void compileWhile() throws IOException {
         writeLine("<whileStatement>");
+        this.whileFlag = true;
+        this.vmWriter.WriteLabel("WHILE");
         compileWhileIf();
         writeLine("</whileStatement>");
+        this.vmWriter.WriteLabel("END-WHILE");
+        this.vmWriter.labelCounter++;
 
     }
 
@@ -354,11 +359,19 @@ class CompilationEngine {
         writeToken("symbol", tokenizer.currentToken); // write (
         tokenizer.advance();
         CompileExpression();
+        this.vmWriter.writeCommand(Command.NOT);
+
+        this.vmWriter.writeGoto("END-WHILE");
+
         writeToken("symbol", tokenizer.currentToken); // write )
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
         tokenizer.advance();
         compileStatements();
+
+        if(this.whileFlag) this.vmWriter.writeGoto("WHILE");
+        else this.vmWriter.writeGoto("IF");
+
         writeToken("symbol", tokenizer.currentToken); // write }
         tokenizer.advance();
     }
