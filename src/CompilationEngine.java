@@ -1,6 +1,7 @@
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -24,6 +25,8 @@ class CompilationEngine {
     private int currentNargs;
     private boolean isConst;
     private boolean isMethod;
+    private boolean lastOpFlg;
+    private ArrayList<String> opsArr = new ArrayList<>();
 
     CompilationEngine(File inputFile, File outputFile, File vmOutputFile) throws IOException {
         minusOpFlag = false;
@@ -392,86 +395,33 @@ class CompilationEngine {
             }
 
             writeToken("symbol", tokenizer.currentToken); // write operation
+            String lastOp = tokenizer.currentToken;
+
             tokenizer.advance();
+            if(!tokenizer.currentToken.equals("(")){
+                this.lastOpFlg = true;
+            } else {
+                this.opsArr.add(lastOp);
+            }
 
             JackTokenizer.TOKEN_TYPE nextTokenType = tokenizer.currentTokenType;
             String nextToken = tokenizer.currentToken;
             tokenizer.advance();
             CompileTerm(nextToken, nextTokenType);
+            if(this.lastOpFlg){
+                writeOperation(lastOp);
+            }
+            this.lastOpFlg = false;
         }
+        Collections.reverse(this.opsArr);
+        for (String op : this.opsArr){
+            writeOperation(op);
+            //System.out.println(op);
+        }
+        this.opsArr.clear();
         writeLine("</expression>");
     }
 
-    private void writeOperation(String token) throws IOException {
-        switch (token){
-            case "*":
-                vmWriter.writeCall("Math.multiply", 2);
-            case "/":
-                vmWriter.writeCall("Math.divide", 2);
-            default:
-                Command command = findOperation(token);
-                vmWriter.writeCommand(command);
-        }
-    }
-
-    private Command findOperation(String op){
-        switch (op){
-            case "+":
-                return Command.ADD;
-            case "<":
-                return Command.LT;
-            case ">":
-                return Command.GT;
-            case "-":
-                return Command.SUB;
-            case "&":
-                return Command.AND;
-            case "|":
-                return Command.OR;
-            default: // we assume correct input, write "="
-                return Command.EQ;
-        }
-    }
-
-    private void writePushVar(String token) throws IOException {
-        if(!this.symbolTable.isInTable(token)){
-            this.vmWriter.writePush(Segment.POINTER, 0);
-        } else {
-            String kind = symbolTable.kindOf(token);
-            int index = symbolTable.indexOf(token);
-            switch (kind) {
-                case "static":
-                    vmWriter.writePush(Segment.STATIC, index);
-
-                case "field":
-                    vmWriter.writePush(Segment.THIS, index);
-
-                case "argument":
-                    vmWriter.writePush(Segment.ARG, index);
-
-                case "var":
-                    vmWriter.writePush(Segment.LOCAL, index);
-            }
-        }
-    }
-
-    private void writePopVar(String token) throws IOException {
-        String kind = symbolTable.kindOf(token);
-        int index = symbolTable.indexOf(token);
-        switch (kind){
-            case "static":
-                vmWriter.writePop(Segment.STATIC, index);
-
-            case "field":
-                vmWriter.writePop(Segment.THIS, index);
-
-            case "argument":
-                vmWriter.writePop(Segment.ARG, index);
-
-            case "var":
-                vmWriter.writePop(Segment.LOCAL, index);
-        }
-    }
 
     /**
      * compile single term
@@ -482,8 +432,8 @@ class CompilationEngine {
         writeLine("<term>");
         switch (firstTokenType){
             case INT_CONST:
-
                 vmWriter.writePush(Segment.CONST, Integer.parseInt(firstToken));
+
 
                 writeToken("integerConstant", firstToken);
                 break;
@@ -561,6 +511,81 @@ class CompilationEngine {
         writeLine("</term>");
     }
 
+
+    private void writeOperation(String token) throws IOException {
+        switch (token){
+            case "*":
+                vmWriter.writeCall("Math.multiply", 2);
+                break;
+            case "/":
+                vmWriter.writeCall("Math.divide", 2);
+                break;
+            default:
+                Command command = findOperation(token);
+                vmWriter.writeCommand(command);
+        }
+    }
+
+    private Command findOperation(String op){
+        switch (op){
+            case "+":
+                return Command.ADD;
+            case "<":
+                return Command.LT;
+            case ">":
+                return Command.GT;
+            case "-":
+                return Command.SUB;
+            case "&":
+                return Command.AND;
+            case "|":
+                return Command.OR;
+            default: // we assume correct input, write "="
+                return Command.EQ;
+        }
+    }
+
+    private void writePushVar(String token) throws IOException {
+//        if(!this.symbolTable.isInTable(token)){
+//            System.out.println(token);
+//            //this.vmWriter.writePush(Segment.POINTER, 0);
+        //} else {
+            String kind = symbolTable.kindOf(token);
+            int index = symbolTable.indexOf(token);
+            switch (kind) {
+                case "static":
+                    vmWriter.writePush(Segment.STATIC, index);
+
+                case "field":
+                    vmWriter.writePush(Segment.THIS, index);
+
+                case "argument":
+                    vmWriter.writePush(Segment.ARG, index);
+
+                case "var":
+                    vmWriter.writePush(Segment.LOCAL, index);
+            }
+       // }
+    }
+
+    private void writePopVar(String token) throws IOException {
+        String kind = symbolTable.kindOf(token);
+        int index = symbolTable.indexOf(token);
+        switch (kind){
+            case "static":
+                vmWriter.writePop(Segment.STATIC, index);
+
+            case "field":
+                vmWriter.writePop(Segment.THIS, index);
+
+            case "argument":
+                vmWriter.writePop(Segment.ARG, index);
+
+            case "var":
+                vmWriter.writePop(Segment.LOCAL, index);
+        }
+    }
+
     /**
      * write list of expressions
      */
@@ -617,6 +642,11 @@ class CompilationEngine {
         writeLine("</subroutineBody>");
     }
 
+    boolean isClass(String identifier){
+        String classRegx = "^[A-Z].*";
+        return identifier.matches(classRegx);
+    }
+
     /**
      * write subroutine call
      */
@@ -639,7 +669,9 @@ class CompilationEngine {
         CompileExpressionList(); // compile expression
 
         if(funcFlag){
-            writePushVar(this.currentSubroutine);
+            if (!isClass(this.currentSubroutine)) {
+                writePushVar(this.currentSubroutine);
+            }
             vmWriter.writeCall(this.currentSubroutine+"."+subName, this.currentNargs);
         } else {
             vmWriter.writePush(Segment.POINTER, 0);
@@ -683,10 +715,10 @@ class CompilationEngine {
         this.isMethod = false;
 
         writeLine("</subroutineDec>");
-        Set<String> keys = this.symbolTable.subroutineTable.keySet();
-        for(String key: keys){
-            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
-        }
+        //Set<String> keys = this.symbolTable.subroutineTable.keySet();
+//        for(String key: keys){
+//            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
+//        }
     }
 
 }
