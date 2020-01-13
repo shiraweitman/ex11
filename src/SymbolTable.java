@@ -5,9 +5,9 @@ public class SymbolTable {
     Hashtable<String, ArrayList<String>> classTable;
     Hashtable<String, ArrayList<String>> subroutineTable;
     private int staticCounter;
-    private int fieldCounter;
+    int fieldCounter;
     private int argsCounter;
-    private int varCounter;
+    int varCounter;
     String className;
 
     /**
@@ -76,7 +76,7 @@ public class SymbolTable {
      * @param name the giver var name
      * @return true if in table, false otherwise
      */
-    private boolean isInTable(String name){
+    boolean isInTable(String name){
         if(!this.subroutineTable.contains(name)){
             // return true if the class table contains the var, false otherwise
             return this.classTable.contains(name);
@@ -142,7 +142,7 @@ public class SymbolTable {
         if(this.subroutineTable.contains(name)){
             return Integer.parseInt(this.subroutineTable.get(name).get(2)); // return the var kind
         }
-        else{
+        else {
             return Integer.parseInt(this.classTable.get(name).get(2));
         }
     }

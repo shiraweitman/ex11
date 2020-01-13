@@ -12,17 +12,19 @@ public class VMWriter {
     }
 
     public void writeCommand(Command command) throws IOException {
-        this.bufferedWriter.write(String.valueOf(command));
+        this.bufferedWriter.write(getStrCmd(command));
         this.bufferedWriter.newLine();
     }
 
     public void writePush(Segment segment, int index) throws IOException {
-        this.bufferedWriter.write("push "+segment+" "+index);
+        String strSegment = getStringVal(segment);
+        this.bufferedWriter.write("push "+strSegment+" "+index);
         this.bufferedWriter.newLine();
     }
 
     public void writePop(Segment segment, int index) throws IOException {
-        this.bufferedWriter.write("pop "+segment+" "+index);
+        String strSegment = getStringVal(segment);
+        this.bufferedWriter.write("pop "+strSegment+" "+index);
         this.bufferedWriter.newLine();
     }
 
@@ -57,5 +59,49 @@ public class VMWriter {
     }
 
     public void close() throws IOException {this.bufferedWriter.close();}
+
+    private String getStringVal(Segment segment){
+        switch (segment){
+            case POINTER:
+                return "pointer";
+            case ARG:
+                return "argument";
+            case TEMP:
+                return "temp";
+            case THAT:
+                return "that";
+            case CONST:
+                return "constant";
+            case THIS:
+                return "this";
+            case LOCAL:
+                return "local";
+            default:
+                return "static";
+        }
+    }
+
+    private String getStrCmd(Command command) {
+        switch (command){
+            case ADD:
+                return "add";
+            case EQ:
+                return "eq";
+            case LT:
+                return "lt";
+            case GT:
+                return "gt";
+            case OR:
+                return "or";
+            case AND:
+                return "and";
+            case NEG:
+                return "neg";
+            case NOT:
+                return "not";
+            default:
+                return "sub";
+        }
+    }
 
 }

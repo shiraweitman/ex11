@@ -14,19 +14,21 @@ class CompilationEngine {
     private JackTokenizer tokenizer;
     private ArrayList<String> operations = new ArrayList<>();
     private boolean minusOpFlag;
-    private boolean arraysFlag;
-    private boolean arrFlag;
+    private boolean expArr;
+    private boolean letArr;
     private SymbolTable symbolTable;
     private String stKeyword;
     private String stType;
     private VMWriter vmWriter;
-    private ArrayList<String> arraysExp = new ArrayList<>();
+    private String currentSubroutine;
+    private int currentNargs;
+    private boolean isConst;
+    private boolean isMethod;
 
-
-    CompilationEngine(File inputFile, File outputFile) throws IOException {
+    CompilationEngine(File inputFile, File outputFile, File vmOutputFile) throws IOException {
         minusOpFlag = false;
         this.symbolTable = new SymbolTable();
-        this.vmWriter = new VMWriter(outputFile);
+        this.vmWriter = new VMWriter(vmOutputFile);
         this.tokenizer = new JackTokenizer(inputFile);
         FileWriter fileWriter = new FileWriter(outputFile);
         this.bufferedWriter = new BufferedWriter(fileWriter);
@@ -90,11 +92,8 @@ class CompilationEngine {
         writeLine("</class>");
         tokenizer.bufferedReader.close();
         this.bufferedWriter.close();
+        this.vmWriter.close();
 
-//        Set<String> keys = this.symbolTable.classTable.keySet();
-//        for(String key: keys){
-//            System.out.println(key + " " + Arrays.toString(this.symbolTable.classTable.get(key).toArray()));
-//        }
     }
 
     /**
@@ -234,10 +233,13 @@ class CompilationEngine {
         writeToken("keyword", tokenizer.currentToken); // write "do"
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // write the first identifier of subroutineCall
+        this.currentSubroutine = tokenizer.currentToken;
         tokenizer.advance();
         compileSubroutineCall();
+        this.currentSubroutine = "";
         writeToken("symbol", tokenizer.currentToken); // write: ;
         tokenizer.advance();
+        vmWriter.writePop(Segment.TEMP, 0);
         writeLine("</doStatement>");
     }
 
@@ -246,7 +248,7 @@ class CompilationEngine {
      */
     private void compileLet() throws IOException {
         writeLine("<letStatement>");
-        boolean arrayFlag = false;
+        this.letArr = false;
         writeToken("keyword", tokenizer.currentToken); // write "let"
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // the var name
@@ -254,8 +256,7 @@ class CompilationEngine {
 
         tokenizer.advance();
         if (!tokenizer.currentToken.equals("=")){
-            arrayFlag = true;
-            this.arraysFlag = true;
+            this.letArr = true;
             writePushVar(var);
 
             writeToken("symbol", tokenizer.currentToken); // write: "["
@@ -263,7 +264,7 @@ class CompilationEngine {
             tokenizer.advance();
             CompileExpression();
 
-            writeOperation(tokenizer.currentToken); // add the values
+            vmWriter.writeCommand(Command.ADD);
 
             writeToken("symbol", tokenizer.currentToken); // write: "]"
             tokenizer.advance();
@@ -272,19 +273,32 @@ class CompilationEngine {
 
         tokenizer.advance();
 //        CompileExpression();
-        if(arrayFlag && !this.arraysFlag){
+        if(!this.letArr && this.expArr){
+            CompileExpression();
+            writePopVar(var);
+        }
+
+        if(this.letArr && this.expArr){
+            CompileExpression();
+            vmWriter.writePop(Segment.POINTER, 1);
+            vmWriter.writePush(Segment.THAT, 0);
+            vmWriter.writePop(Segment.TEMP, 0);
+            vmWriter.writePop(Segment.POINTER, 1);
+            vmWriter.writePush(Segment.TEMP, 0);
+            vmWriter.writePop(Segment.THAT, 0);
+        }
+
+        if(this.letArr && !this.expArr){
             vmWriter.writePop(Segment.POINTER, 1);
             CompileExpression();
             vmWriter.writePop(Segment.THAT, 0);
         } else {
-            writePopVar(var);
+                System.out.println("error in compile arr case");
         }
 
         writeToken("symbol", tokenizer.currentToken); // write: ;
         tokenizer.advance();
         writeLine("</letStatement>");
-
-        // todo reset flag?
 
     }
 
@@ -305,9 +319,12 @@ class CompilationEngine {
         writeLine("<returnStatement>");
         writeToken("keyword", tokenizer.currentToken); // write return
         tokenizer.advance();
-        if (!tokenizer.currentToken.equals(";")) { // there is an expression before ";"
+        if (tokenizer.currentToken.equals(";")) {
+            vmWriter.writePush(Segment.CONST, 0);
+        } else {
             CompileExpression();
         }
+        this.vmWriter.writeReturn();
         writeToken("symbol", tokenizer.currentToken); // write: ;
         tokenizer.advance();
         writeLine("</returnStatement>");
@@ -361,7 +378,7 @@ class CompilationEngine {
      */
     private void CompileExpression() throws IOException {
         writeLine("<expression>");
-
+        this.expArr = false;
         if(tokenizer.currentToken.equals(")")){
             return;
         }
@@ -373,8 +390,6 @@ class CompilationEngine {
             if(tokenizer.currentToken.equals("-")){
                 this.minusOpFlag = true;
             }
-
-            writeOperation(tokenizer.currentToken);
 
             writeToken("symbol", tokenizer.currentToken); // write operation
             tokenizer.advance();
@@ -419,20 +434,24 @@ class CompilationEngine {
     }
 
     private void writePushVar(String token) throws IOException {
-        String kind = symbolTable.kindOf(token);
-        int index = symbolTable.indexOf(token);
-        switch (kind){
-            case "static":
-                vmWriter.writePush(Segment.STATIC, index);
+        if(!this.symbolTable.isInTable(token)){
+            this.vmWriter.writePush(Segment.POINTER, 0);
+        } else {
+            String kind = symbolTable.kindOf(token);
+            int index = symbolTable.indexOf(token);
+            switch (kind) {
+                case "static":
+                    vmWriter.writePush(Segment.STATIC, index);
 
-            case "field":
-                vmWriter.writePush(Segment.THIS, index);
+                case "field":
+                    vmWriter.writePush(Segment.THIS, index);
 
-            case "argument":
-                vmWriter.writePush(Segment.ARG, index);
+                case "argument":
+                    vmWriter.writePush(Segment.ARG, index);
 
-            case "var":
-                vmWriter.writePush(Segment.LOCAL, index);
+                case "var":
+                    vmWriter.writePush(Segment.LOCAL, index);
+            }
         }
     }
 
@@ -476,23 +495,35 @@ class CompilationEngine {
                 writeToken("keyword", firstToken);
                 break;
             case IDENTIFIER:
-                writePushVar(firstToken);
 
                 writeToken("identifier", firstToken); // varName
                 if(tokenizer.currentToken.equals("[")){
+                    this.expArr = true;
+                    writePushVar(firstToken);
+
                     writeToken("symbol", tokenizer.currentToken); // write "["
                     tokenizer.advance();
                     CompileExpression();
+
+                    vmWriter.writeCommand(Command.ADD);
+
+
                     writeToken("symbol", tokenizer.currentToken);  // write "]"
                     tokenizer.advance(); //
+
                 } else if (tokenizer.currentToken.equals("(") || tokenizer.currentToken.equals(".") ) {
+                    this.currentSubroutine = firstToken;
                     compileSubroutineCall();
+                    this.currentSubroutine = "";
                 }
                 else if(tokenizer.currentToken.equals(")")){
                     break;
 
                 } else if(tokenizer.currentToken.equals(",")){
                     break;
+                } else {
+                    writePushVar(firstToken);
+
                 }
                 break;
 
@@ -534,14 +565,17 @@ class CompilationEngine {
      * write list of expressions
      */
     private void CompileExpressionList() throws IOException {
+        this.currentNargs = 0;
         writeLine("<expressionList>");
         if(!tokenizer.currentToken.equals(")")){ // not empty
             CompileExpression();
+            this.currentNargs++;
             while (true){
                 if(tokenizer.currentToken.equals(",")){
                     writeToken("symbol", tokenizer.currentToken); // write ","
-                    tokenizer.advance(); //advance to the expression after the comma
+                    tokenizer.advance(); // advance to the expression after the comma
                     CompileExpression();
+                    this.currentNargs++;
                 } else {
                     break;
                 }
@@ -561,11 +595,26 @@ class CompilationEngine {
         while (tokenizer.currentToken.equals("var")){
             compileVarDec();
         }
+
+        this.vmWriter.writeFunction(this.symbolTable.className+"."+this.currentSubroutine, this.symbolTable.varCounter);
+        if(this.isConst){
+            int index = this.symbolTable.fieldCounter;
+            this.vmWriter.writePush(Segment.CONST, index);
+            this.vmWriter.writeCall("Memory.alloc", 1);
+            this.vmWriter.writePop(Segment.POINTER, 0);
+            this.isConst = false;
+        }
+
+        else if(this.isMethod){
+            this.vmWriter.writePush(Segment.ARG, 0);
+            this.vmWriter.writePop(Segment.POINTER, 0);
+        }
+
+
         compileStatements();
         writeToken("symbol", tokenizer.currentToken); // write "}"
         tokenizer.advance();
         writeLine("</subroutineBody>");
-
     }
 
     /**
@@ -573,29 +622,47 @@ class CompilationEngine {
      */
     private void compileSubroutineCall() throws IOException {
         // todo handle this case
-
-        if(tokenizer.currentToken.equals("(")){
-
-        } else {
+        boolean funcFlag = false;
+        String subName = "";
+        if(!tokenizer.currentToken.equals("(")){
             writeToken("symbol", tokenizer.currentToken); // write "."
             tokenizer.advance();
             writeToken("identifier", tokenizer.currentToken); // write subroutineName
+            subName = tokenizer.currentToken;
+            funcFlag = true;
+            // writePushVar("this");
             tokenizer.advance();
         }
+
         writeToken("symbol", tokenizer.currentToken); // write "("
         tokenizer.advance();
         CompileExpressionList(); // compile expression
+
+        if(funcFlag){
+            writePushVar(this.currentSubroutine);
+            vmWriter.writeCall(this.currentSubroutine+"."+subName, this.currentNargs);
+        } else {
+            vmWriter.writePush(Segment.POINTER, 0);
+            vmWriter.writeCall( this.currentSubroutine, this.currentNargs);
+        }
+
         writeToken("symbol", tokenizer.currentToken); // write ")"
         tokenizer.advance();
     }
 
     /**
-     * compile the subroutine decleration
+     * compile the subroutine declaration
      */
     private void compileSubroutineDec() throws IOException {
         symbolTable.startSubroutine();
         writeLine("<subroutineDec>");
         writeToken("keyword", tokenizer.currentToken); // write constructor/function/method
+        if(tokenizer.currentToken.equals("constructor")){
+            this.isConst = true;
+        } else if(tokenizer.currentToken.equals("method")){
+            this.isMethod = true;
+        }
+
         tokenizer.advance();
         if(tokenizer.currentToken.equals("void")){
             writeToken("keyword", tokenizer.currentToken); // write void
@@ -604,6 +671,7 @@ class CompilationEngine {
         }
         tokenizer.advance();
         writeToken("identifier", tokenizer.currentToken); // write subroutineName
+        this.currentSubroutine = tokenizer.currentToken;
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write "("
         tokenizer.advance();
@@ -612,12 +680,13 @@ class CompilationEngine {
         tokenizer.advance();
         compileSubroutineBody();
 
+        this.isMethod = false;
+
         writeLine("</subroutineDec>");
         Set<String> keys = this.symbolTable.subroutineTable.keySet();
         for(String key: keys){
             System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
         }
     }
-
 
 }

@@ -13,16 +13,25 @@ public class JackAnalyzer {
             for (File file : inputFile.listFiles()){
                 if (file.getAbsolutePath().endsWith(".jack")){
                     String outputPath = file.getAbsolutePath().replaceAll(".jack", ".xml");
+                    String vnOutputPath = file.getAbsolutePath().replaceAll(".jack", ".vm");
+
                     File outputFile = new File(outputPath);
-                    CompilationEngine compilationEngine = new CompilationEngine(file, outputFile);
+                    File vmOutputFile = new File(vnOutputPath);
+
+                    CompilationEngine compilationEngine = new CompilationEngine(file, outputFile, vmOutputFile);
                     compilationEngine.CompileClass();
                 }
             }
         } else {
             // translate single file
             String outputPath = inputFile.getAbsolutePath().replaceAll(".jack", ".xml");
+
+            String vnOutputPath = inputFile.getAbsolutePath().replaceAll(".jack", ".vm");
+
             File outputFile = new File(outputPath);
-            CompilationEngine compilationEngine = new CompilationEngine(inputFile, outputFile);
+            File vmOutputFile = new File(vnOutputPath);
+
+            CompilationEngine compilationEngine = new CompilationEngine(inputFile, outputFile, vmOutputFile);
             compilationEngine.CompileClass();
 
         }
