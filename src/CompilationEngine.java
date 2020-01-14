@@ -307,9 +307,11 @@ class CompilationEngine {
      */
     private void compileWhile() throws IOException {
         writeLine("<whileStatement>");
+
+        this.vmWriter.writeLabel("while");
+
         compileWhileIf();
         writeLine("</whileStatement>");
-
     }
 
     /**
@@ -351,6 +353,8 @@ class CompilationEngine {
         writeToken("symbol", tokenizer.currentToken); // write (
         tokenizer.advance();
         CompileExpression();
+
+        this.vmWriter.writeCommand(Command.NEG);
         writeToken("symbol", tokenizer.currentToken); // write )
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
