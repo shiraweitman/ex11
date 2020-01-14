@@ -283,6 +283,10 @@ class CompilationEngine {
 
         tokenizer.advance();
         CompileExpression();
+         if(isConst){
+             System.out.println(this.symbolTable.kindOf(var));;
+         }
+
         if(!this.letArr && this.expArr){
             //CompileExpression();
             writePopVar(var);
@@ -300,7 +304,7 @@ class CompilationEngine {
 
         else if(this.letArr && !this.expArr){
             vmWriter.writePop(Segment.POINTER, 1);
-            //CompileExpression();
+            //CompileExpression(); // todo handle this case
             vmWriter.writePop(Segment.THAT, 0);
         } else if (!this.letArr && !this.expArr) {
 //            System.out.println(var);
@@ -604,7 +608,7 @@ class CompilationEngine {
                 vmWriter.writeCall("Math.divide", 2);
                 break;
             default:
-                System.out.println(token);
+                //System.out.println(token);
                 Command command = findOperation(token);
                 vmWriter.writeCommand(command);
         }
@@ -698,6 +702,8 @@ class CompilationEngine {
                 }
             }
         }
+        //System.out.println(this.symbolTable.isInTable(this.currentSubroutine));
+        if(this.symbolTable.isInTable(this.currentSubroutine)) currentNargs++;
         writeLine("</expressionList>");
     }
 
@@ -766,7 +772,9 @@ class CompilationEngine {
             if (!isClass(this.currentSubroutine)) {
                 writePushVar(this.currentSubroutine);
             }
-            vmWriter.writeCall(this.currentSubroutine+"."+subName, this.currentNargs);
+            vmWriter.writeCall((!isClass(this.currentSubroutine) ?
+                    this.symbolTable.typeOf(this.currentSubroutine) : this.currentSubroutine)
+                    +"."+ subName, this.currentNargs);
         } else {
             vmWriter.writePush(Segment.POINTER, 0);
             vmWriter.writeCall( this.currentSubroutine, this.currentNargs);
