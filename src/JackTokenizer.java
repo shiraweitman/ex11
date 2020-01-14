@@ -6,6 +6,7 @@ import java.util.regex.*;
  * create jack tokens
  */
 class JackTokenizer {
+    private static String commentPattern = "(^//.*)|(^/\\*.*)|^\\*.*";
     String currentToken; // hold the current token
     private final ArrayList<String> symbols = new ArrayList<>();
     BufferedReader bufferedReader;
@@ -48,7 +49,7 @@ class JackTokenizer {
     private void cleanFile(BufferedWriter bufferedWriter, BufferedReader bufferedReader) throws IOException {
         String line;
         while ((line = bufferedReader.readLine()) != null){
-            if(!line.startsWith("//") && !line.contains("/*") && !line.startsWith(" *") && !line.endsWith("/")
+            if(!line.startsWith("//") && !isComment(line) && !line.contains("/*") && !line.startsWith(" *") && !line.endsWith("/")
                     &&  !line.equals("") && !line.matches("^\\s+\\*") && !line.equals("\t")){
                 if(line.contains("else")){
                     System.out.println("");
@@ -63,6 +64,10 @@ class JackTokenizer {
         bufferedWriter.close();
         bufferedReader.close();
      }
+
+    private boolean isComment(String line) {
+        return line.matches(commentPattern);
+    }
 
     private void initialSymbols(){
         symbols.add("{");
