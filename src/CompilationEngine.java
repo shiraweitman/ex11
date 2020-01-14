@@ -155,6 +155,12 @@ class CompilationEngine {
      * compile var declerations
      */
     private void compileVarDec() throws IOException {
+//        Set<String> keys = this.symbolTable.subroutineTable.keySet();
+//          for(String key: keys){
+//            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
+//          }
+//        System.out.println("my var num " + this.symbolTable.varCounter);
+//        System.out.println("*****************");
         writeLine("<varDec>");
         writeToken("keyword", tokenizer.currentToken); // write var
         this.stKeyword = tokenizer.currentToken;
@@ -276,14 +282,14 @@ class CompilationEngine {
         writeToken("symbol", tokenizer.currentToken); // write: =
 
         tokenizer.advance();
-//        CompileExpression();
+        CompileExpression();
         if(!this.letArr && this.expArr){
-            CompileExpression();
+            //CompileExpression();
             writePopVar(var);
         }
 
-        if(this.letArr && this.expArr){
-            CompileExpression();
+        else if(this.letArr && this.expArr){
+            //CompileExpression();
             vmWriter.writePop(Segment.POINTER, 1);
             vmWriter.writePush(Segment.THAT, 0);
             vmWriter.writePop(Segment.TEMP, 0);
@@ -292,12 +298,20 @@ class CompilationEngine {
             vmWriter.writePop(Segment.THAT, 0);
         }
 
-        if(this.letArr && !this.expArr){
+        else if(this.letArr && !this.expArr){
             vmWriter.writePop(Segment.POINTER, 1);
-            CompileExpression();
+            //CompileExpression();
             vmWriter.writePop(Segment.THAT, 0);
-        } else {
-                System.out.println("error in compile arr case");
+        } else if (!this.letArr && !this.expArr) {
+//            System.out.println(var);
+//            System.out.println(symbolTable.kindOf(var));
+//            Set<String> keys = this.symbolTable.subroutineTable.keySet();
+//          for(String key: keys){
+//            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
+//          }
+            writePopVar(var);
+
+            //System.out.println("error in compile arr case");
         }
 
         writeToken("symbol", tokenizer.currentToken); // write: ;
@@ -310,13 +324,32 @@ class CompilationEngine {
      * compile while statement
      */
     private void compileWhile() throws IOException {
+        this.vmWriter.whileCounter++;
         writeLine("<whileStatement>");
-        this.whileFlag = true;
-        this.vmWriter.WriteLabel("WHILE");
-        compileWhileIf();
+        writeToken("keyword", tokenizer.currentToken); // write if/while
+        tokenizer.advance();
+        writeToken("symbol", tokenizer.currentToken); // write (
+        tokenizer.advance();
+
+        this.vmWriter.WriteLabel("WHILE_EXP"+this.vmWriter.whileCounter);
+        CompileExpression();
+
+        this.vmWriter.writeCommand(Command.NOT);
+
+        writeToken("symbol", tokenizer.currentToken); // write )
+        tokenizer.advance();
+        writeToken("symbol", tokenizer.currentToken); // write {
+        tokenizer.advance();
+
+        this.vmWriter.writeIf("WHILE_END"+this.vmWriter.whileCounter);
+        compileStatements();
+
+        this.vmWriter.writeGoto("WHILE_EXP"+this.vmWriter.whileCounter);
+        this.vmWriter.WriteLabel("WHILE_END"+this.vmWriter.whileCounter);
+
+        writeToken("symbol", tokenizer.currentToken); // write }
+        tokenizer.advance();
         writeLine("</whileStatement>");
-        this.vmWriter.WriteLabel("END-WHILE");
-        this.vmWriter.labelCounter++;
 
     }
 
@@ -342,49 +375,79 @@ class CompilationEngine {
      * compile if statement
      */
     private void compileIf() throws IOException {
+        this.vmWriter.ifCounter++;
+        int curIdx =  this.vmWriter.ifCounter;
         writeLine("<ifStatement>");
-        compileWhileIf();
+        writeToken("keyword", tokenizer.currentToken); // write if/while
+        tokenizer.advance();
+        writeToken("symbol", tokenizer.currentToken); // write (
+        tokenizer.advance();
+        CompileExpression();
+
+        this.vmWriter.writeIf("IF_TRUE"+curIdx);
+        this.vmWriter.writeGoto("IF_FALSE"+curIdx);
+
+        writeToken("symbol", tokenizer.currentToken); // write )
+        tokenizer.advance();
+        writeToken("symbol", tokenizer.currentToken); // write {
+        tokenizer.advance();
+
+        this.vmWriter.WriteLabel("IF_TRUE"+curIdx);
+        compileStatements();
+
+
+
+        writeToken("symbol", tokenizer.currentToken); // write }
+        tokenizer.advance();
         if(tokenizer.currentToken.equals("else")){
-            compileElse();
-        }
+            compileElse(curIdx);
+        } else this.vmWriter.WriteLabel("IF_FALSE"+this.vmWriter.ifCounter);
+
         writeLine("</ifStatement>");
     }
 
     /**
      * compile part of the while and the if statements
      */
-    private void compileWhileIf() throws IOException {
-        writeToken("keyword", tokenizer.currentToken); // write if/while
-        tokenizer.advance();
-        writeToken("symbol", tokenizer.currentToken); // write (
-        tokenizer.advance();
-        CompileExpression();
-        this.vmWriter.writeCommand(Command.NOT);
-
-        this.vmWriter.writeGoto("END-WHILE");
-
-        writeToken("symbol", tokenizer.currentToken); // write )
-        tokenizer.advance();
-        writeToken("symbol", tokenizer.currentToken); // write {
-        tokenizer.advance();
-        compileStatements();
-
-        if(this.whileFlag) this.vmWriter.writeGoto("WHILE");
-        else this.vmWriter.writeGoto("IF");
-
-        writeToken("symbol", tokenizer.currentToken); // write }
-        tokenizer.advance();
-    }
+//    private void compileWhileIf() throws IOException {
+//        writeToken("keyword", tokenizer.currentToken); // write if/while
+//        tokenizer.advance();
+//        writeToken("symbol", tokenizer.currentToken); // write (
+//        tokenizer.advance();
+//        CompileExpression();
+//        this.vmWriter.writeCommand(Command.NOT);
+//
+//        if(this.whileFlag) this.vmWriter.writeIf("END-WHILE"); // if the condition doesn't hold, get out
+//        else this.vmWriter.writeIf("ELSE"); // if the condition hold goto ELSE
+//
+//        writeToken("symbol", tokenizer.currentToken); // write )
+//        tokenizer.advance();
+//        writeToken("symbol", tokenizer.currentToken); // write {
+//        tokenizer.advance();
+//        compileStatements();
+//
+//        if(this.whileFlag) this.vmWriter.writeGoto("WHILE");
+//        else this.vmWriter.writeGoto("IF-OUT");
+//
+//        writeToken("symbol", tokenizer.currentToken); // write }
+//        tokenizer.advance();
+//    }
 
     /**
      * compile the else part
      */
-    private void compileElse() throws IOException {
+    private void compileElse(int index) throws IOException {
+
+        this.vmWriter.writeGoto("IF_END"+index);
+        this.vmWriter.WriteLabel("IF_FALSE"+index);
+
         writeToken("keyword", tokenizer.currentToken); // write else
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
         tokenizer.advance();
         compileStatements();
+
+        this.vmWriter.WriteLabel("IF_END"+index);
         writeToken("symbol", tokenizer.currentToken); // write }
         tokenizer.advance();
     }
@@ -398,6 +461,9 @@ class CompilationEngine {
         if(tokenizer.currentToken.equals(")")){
             return;
         }
+//        if(tokenizer.currentToken.equals("position")){
+//            System.out.println(tokenizer.currentToken);
+//        }
         JackTokenizer.TOKEN_TYPE firstTokenType = tokenizer.currentTokenType;
         String firstToken = tokenizer.currentToken;
         tokenizer.advance();
@@ -446,8 +512,6 @@ class CompilationEngine {
         switch (firstTokenType){
             case INT_CONST:
                 vmWriter.writePush(Segment.CONST, Integer.parseInt(firstToken));
-
-
                 writeToken("integerConstant", firstToken);
                 break;
             case STRING_CONST:
@@ -455,14 +519,19 @@ class CompilationEngine {
                 writeToken("stringConstant", firstToken);
                 break;
             case KEYWORD:
+
+                this.vmWriter.writePush(Segment.CONST, 0);
+                if(firstToken.equals("true")) this.vmWriter.writeCommand(Command.NOT);
+
                 writeToken("keyword", firstToken);
                 break;
             case IDENTIFIER:
 
                 writeToken("identifier", firstToken); // varName
+                //System.out.println(firstToken);
+                if(!isClass(firstToken)) writePushVar(firstToken);
                 if(tokenizer.currentToken.equals("[")){
                     this.expArr = true;
-                    writePushVar(firstToken);
 
                     writeToken("symbol", tokenizer.currentToken); // write "["
                     tokenizer.advance();
@@ -485,7 +554,8 @@ class CompilationEngine {
                 } else if(tokenizer.currentToken.equals(",")){
                     break;
                 } else {
-                    writePushVar(firstToken);
+                    //System.out.println("I'M IN ELSE INSIDE COMPILE TERM - IDENTIFIER");
+                    //writePushVar(firstToken);
 
                 }
                 break;
@@ -498,17 +568,16 @@ class CompilationEngine {
                     tokenizer.advance();
 
                 } else if(firstToken.equals("~")) {// check if "~"
-                    vmWriter.writeCommand(Command.NOT);
 
                     writeToken("symbol", firstToken); // write "~"
                     JackTokenizer.TOKEN_TYPE tildaTokenType = tokenizer.currentTokenType;
                     String tildaNextToken = tokenizer.currentToken;
                     tokenizer.advance();
                     CompileTerm(tildaNextToken, tildaTokenType); // recursive call
+                    vmWriter.writeCommand(Command.NOT);
 
                 } else if(firstToken.equals("-") && !this.minusOpFlag) {// check if "-"
 
-                    vmWriter.writeCommand(Command.NEG);
 
                     writeToken("symbol", firstToken); // write "-"
                     ///
@@ -517,6 +586,7 @@ class CompilationEngine {
                     tokenizer.advance();
                     ///
                     CompileTerm(tildaNextToken, tildaTokenType); // recursive call
+                    vmWriter.writeCommand(Command.NEG);
                 }
                 this.minusOpFlag = false;
 
@@ -534,6 +604,7 @@ class CompilationEngine {
                 vmWriter.writeCall("Math.divide", 2);
                 break;
             default:
+                System.out.println(token);
                 Command command = findOperation(token);
                 vmWriter.writeCommand(command);
         }
@@ -543,13 +614,13 @@ class CompilationEngine {
         switch (op){
             case "+":
                 return Command.ADD;
-            case "<":
+            case "&lt;":
                 return Command.LT;
-            case ">":
+            case "&gt;":
                 return Command.GT;
             case "-":
                 return Command.SUB;
-            case "&":
+            case "&amp;":
                 return Command.AND;
             case "|":
                 return Command.OR;
@@ -568,15 +639,19 @@ class CompilationEngine {
             switch (kind) {
                 case "static":
                     vmWriter.writePush(Segment.STATIC, index);
+                    break;
 
                 case "field":
                     vmWriter.writePush(Segment.THIS, index);
+                    break;
 
                 case "argument":
                     vmWriter.writePush(Segment.ARG, index);
+                    break;
 
                 case "var":
                     vmWriter.writePush(Segment.LOCAL, index);
+                    break;
             }
        // }
     }
@@ -587,15 +662,19 @@ class CompilationEngine {
         switch (kind){
             case "static":
                 vmWriter.writePop(Segment.STATIC, index);
+                break;
 
             case "field":
                 vmWriter.writePop(Segment.THIS, index);
+                break;
 
             case "argument":
                 vmWriter.writePop(Segment.ARG, index);
+                break;
 
             case "var":
                 vmWriter.writePop(Segment.LOCAL, index);
+                break;
         }
     }
 
@@ -648,6 +727,8 @@ class CompilationEngine {
             this.vmWriter.writePop(Segment.POINTER, 0);
         }
 
+        this.vmWriter.ifCounter = -1;
+        this.vmWriter.whileCounter = -1;
 
         compileStatements();
         writeToken("symbol", tokenizer.currentToken); // write "}"

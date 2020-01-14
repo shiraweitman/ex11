@@ -57,14 +57,17 @@ public class SymbolTable {
                     varDetails.add(String.valueOf(this.fieldCounter));
                     this.fieldCounter++;
                     this.classTable.put(name, varDetails);
+                    break;
                 case "argument":
                     varDetails.add(String.valueOf(this.argsCounter));
                     this.argsCounter++;
                     this.subroutineTable.put(name, varDetails);
+                    break;
                 case "var":
                     varDetails.add(String.valueOf(this.varCounter));
                     this.varCounter++;
                     this.subroutineTable.put(name, varDetails);
+                    break;
             }
         }
     }
@@ -77,9 +80,9 @@ public class SymbolTable {
      * @return true if in table, false otherwise
      */
     boolean isInTable(String name){
-        if(!this.subroutineTable.contains(name)){
+        if(!this.subroutineTable.containsKey(name)){
             // return true if the class table contains the var, false otherwise
-            return this.classTable.contains(name);
+            return this.classTable.containsKey(name);
         }
         return true; // if the subroutine table contains the var
     }
@@ -110,10 +113,10 @@ public class SymbolTable {
      * identifier is unknown in the current scope.
      */
     String kindOf(String name){
-        if(this.subroutineTable.contains(name)){
+        if(this.subroutineTable.containsKey(name)){
             return this.subroutineTable.get(name).get(1); // return the var kind
         }
-        if(this.classTable.contains(name)) {
+        if(this.classTable.containsKey(name)) {
             return this.classTable.get(name).get(1);
         }
         return null; // if the name isn't in the tables
@@ -122,13 +125,12 @@ public class SymbolTable {
     /**
      * Returns the type of the named identifier in
      * the current scope.
-
      */
     String typeOf(String name){
-        if(this.subroutineTable.contains(name)){
+        if(this.subroutineTable.containsKey(name)){
             return this.subroutineTable.get(name).get(0); // return the var kind
         }
-        if(this.classTable.contains(name)) {
+        if(this.classTable.containsKey(name)) {
             return this.classTable.get(name).get(0);
         }
         return null; // if the name isn't in the tables
@@ -139,7 +141,7 @@ public class SymbolTable {
      * identifier.
      */
     int indexOf(String name){
-        if(this.subroutineTable.contains(name)){
+        if(this.subroutineTable.containsKey(name)){
             return Integer.parseInt(this.subroutineTable.get(name).get(2)); // return the var kind
         }
         else {
