@@ -50,10 +50,7 @@ class JackTokenizer {
         String line;
         while ((line = bufferedReader.readLine()) != null){
             if(!line.startsWith("//") && !isComment(line) && !line.contains("/*") && !line.startsWith(" *") && !line.endsWith("/")
-                    &&  !line.equals("") && !line.matches("^\\s+\\*") && !line.equals("\t")){
-                if(line.contains("else")){
-                    System.out.println("");
-                }
+              &&  !line.equals("") && !line.matches("^\\s+\\*") && !line.equals("\t") && !line.startsWith("     *")){
                 line = line.replaceAll("\t", "");
                 line = line.replaceAll("  ", "");
                 String[] splitedLine = line.split("//");

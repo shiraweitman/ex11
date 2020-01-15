@@ -25,7 +25,6 @@ class CompilationEngine {
     private int currentNargs;
     private boolean isConst;
     private boolean isMethod;
-    private boolean lastOpFlg;
     private boolean whileFlag;
 
     CompilationEngine(File inputFile, File outputFile, File vmOutputFile) throws IOException {
@@ -448,7 +447,7 @@ class CompilationEngine {
      */
     private void CompileExpression() throws IOException {
         ArrayList<String> opsArr = new ArrayList<>();
-
+        boolean lastOpFlg = false;
         writeLine("<expression>");
         this.expArr = false;
         if(tokenizer.currentToken.equals(")")){
@@ -460,19 +459,20 @@ class CompilationEngine {
         tokenizer.advance();
         CompileTerm(firstToken, firstTokenType);
         while (operations.contains(tokenizer.currentToken)){
+            System.out.println(tokenizer.currentToken);
             if(tokenizer.currentToken.equals("-")){
                 this.minusOpFlag = true;
             }
 
             writeToken("symbol", tokenizer.currentToken); // write operation
             String lastOp = tokenizer.currentToken;
-            if(lastOp.equals("&lt;")){
+            if(lastOp.equals("*")){
                 System.out.println(lastOp);
             }
 
             tokenizer.advance();
             if(!tokenizer.currentToken.equals("(")){
-                this.lastOpFlg = true;
+                lastOpFlg = true;
             } else {
                 opsArr.add(lastOp);
             }
@@ -481,10 +481,10 @@ class CompilationEngine {
             String nextToken = tokenizer.currentToken;
             tokenizer.advance();
             CompileTerm(nextToken, nextTokenType);
-            if(this.lastOpFlg){
+            if(lastOpFlg){
                 writeOperation(lastOp);
             }
-            this.lastOpFlg = false;
+            lastOpFlg = false;
         }
         Collections.reverse(opsArr);
         for (String op : opsArr){
