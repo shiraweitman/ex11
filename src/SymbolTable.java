@@ -6,7 +6,7 @@ public class SymbolTable {
     Hashtable<String, ArrayList<String>> subroutineTable;
     private int staticCounter;
     int fieldCounter;
-    private int argsCounter;
+    int argsCounter;
     int varCounter;
     String className;
 

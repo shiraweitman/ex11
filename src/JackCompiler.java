@@ -5,7 +5,7 @@ import java.io.IOException;
 /**
  * Jack Jack Analyzer that translate jack programs to xml file
  */
-public class JackAnalyzer {
+public class JackCompiler {
     public static void main(String[] args) throws IOException {
         File inputFile = new File(args[0]);
         // handle directory and translate each file in it

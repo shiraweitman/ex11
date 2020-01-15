@@ -4,7 +4,7 @@ Maayan Magenheim, ID 203237953, maayan.magenheim@mail.huji.ac.il
 Shira Weitman, ID 314842519, shira.weitman@mail.huji.ac.il
 ===============================================================================
 
-                           Project 10 - Syntax Analysis
+                           Project 11 - Jack Compiler
                            -----------------------
 
 
@@ -12,9 +12,13 @@ Submitted Files
 ---------------
 
 README - This file.
-JackAnalyzer.java - jack syntax analyzer that translate jack to tokens
+JackCompiler.java - jack syntax analyzer that translate jack to tokens
 JackTokenizer.java - create and handle jack tokens
 CompilationEngine.java - create and handle the jack grammar
+Command.java - enum for the commands
+Segment - enum for the the Segments
+SymbolTable.java - handle the symbols in the jack files
+VMWriter. java - write the VM commands at the jack file
 
 Remarks
 -------

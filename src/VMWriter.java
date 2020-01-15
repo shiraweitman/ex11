@@ -14,54 +14,54 @@ public class VMWriter {
         this.bufferedWriter = new BufferedWriter(fileWriter);
     }
 
-    public void writeCommand(Command command) throws IOException {
+    void writeCommand(Command command) throws IOException {
         this.bufferedWriter.write(getStrCmd(command));
         this.bufferedWriter.newLine();
     }
 
-    public void writePush(Segment segment, int index) throws IOException {
+    void writePush(Segment segment, int index) throws IOException {
         String strSegment = getStringVal(segment);
         this.bufferedWriter.write("push "+strSegment+" "+index);
         this.bufferedWriter.newLine();
     }
 
-    public void writePop(Segment segment, int index) throws IOException {
+    void writePop(Segment segment, int index) throws IOException {
         String strSegment = getStringVal(segment);
         this.bufferedWriter.write("pop "+strSegment+" "+index);
         this.bufferedWriter.newLine();
     }
 
-    public void WriteLabel(String label) throws IOException {
+    void WriteLabel(String label) throws IOException {
         this.bufferedWriter.write("label "+ label);
         this.bufferedWriter.newLine();
     }
 
-    public void writeGoto(String label) throws IOException {
+    void writeGoto(String label) throws IOException {
         this.bufferedWriter.write("goto "+label);
         this.bufferedWriter.newLine();
     }
 
-    public void writeIf(String label) throws IOException {
+    void writeIf(String label) throws IOException {
         this.bufferedWriter.write("if-goto "+label);
         this.bufferedWriter.newLine();
     }
 
-    public void writeCall(String name, int argsNum) throws IOException {
+    void writeCall(String name, int argsNum) throws IOException {
         this.bufferedWriter.write("call "+name+ " "+argsNum);
         this.bufferedWriter.newLine();
     }
 
-    public void writeFunction(String name, int localsNum) throws IOException {
+    void writeFunction(String name, int localsNum) throws IOException {
         this.bufferedWriter.write("function "+name+ " "+localsNum);
         this.bufferedWriter.newLine();
     }
 
-    public void writeReturn() throws IOException {
+    void writeReturn() throws IOException {
         this.bufferedWriter.write("return");
         this.bufferedWriter.newLine();
     }
 
-    public void close() throws IOException {this.bufferedWriter.close();}
+    void close() throws IOException {this.bufferedWriter.close();}
 
     private String getStringVal(Segment segment){
         switch (segment){

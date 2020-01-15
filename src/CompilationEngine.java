@@ -418,37 +418,11 @@ class CompilationEngine {
         tokenizer.advance();
         if(tokenizer.currentToken.equals("else")){
             compileElse(curIdx);
-        } else this.vmWriter.WriteLabel("IF_FALSE"+this.vmWriter.ifCounter);
+        } else this.vmWriter.WriteLabel("IF_FALSE"+curIdx);
 
         writeLine("</ifStatement>");
     }
 
-    /**
-     * compile part of the while and the if statements
-     */
-//    private void compileWhileIf() throws IOException {
-//        writeToken("keyword", tokenizer.currentToken); // write if/while
-//        tokenizer.advance();
-//        writeToken("symbol", tokenizer.currentToken); // write (
-//        tokenizer.advance();
-//        CompileExpression();
-//        this.vmWriter.writeCommand(Command.NOT);
-//
-//        if(this.whileFlag) this.vmWriter.writeIf("END-WHILE"); // if the condition doesn't hold, get out
-//        else this.vmWriter.writeIf("ELSE"); // if the condition hold goto ELSE
-//
-//        writeToken("symbol", tokenizer.currentToken); // write )
-//        tokenizer.advance();
-//        writeToken("symbol", tokenizer.currentToken); // write {
-//        tokenizer.advance();
-//        compileStatements();
-//
-//        if(this.whileFlag) this.vmWriter.writeGoto("WHILE");
-//        else this.vmWriter.writeGoto("IF-OUT");
-//
-//        writeToken("symbol", tokenizer.currentToken); // write }
-//        tokenizer.advance();
-//    }
 
     /**
      * compile the else part
@@ -811,17 +785,21 @@ class CompilationEngine {
 
         writeToken("symbol", tokenizer.currentToken); // write "("
         tokenizer.advance();
-        CompileExpressionList(); // compile expression
-
         if(funcFlag){
             if (!isClass(this.currentSubroutine)) {
                 writePushVar(this.currentSubroutine);
             }
+        } else {
+
+            vmWriter.writePush(Segment.POINTER, 0);
+        }
+        CompileExpressionList(); // compile expression
+
+        if(funcFlag){
             vmWriter.writeCall((!isClass(this.currentSubroutine) ?
                     this.symbolTable.typeOf(this.currentSubroutine) : this.currentSubroutine)
                     +"."+ subName, this.currentNargs);
         } else {
-            vmWriter.writePush(Segment.POINTER, 0);
             vmWriter.writeCall( this.symbolTable.className+"."+this.currentSubroutine, this.currentNargs+1);
         }
 
@@ -840,6 +818,7 @@ class CompilationEngine {
             this.isConst = true;
         } else if(tokenizer.currentToken.equals("method")){
             this.isMethod = true;
+            this.symbolTable.argsCounter++;
         }
 
         tokenizer.advance();

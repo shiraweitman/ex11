@@ -1,10 +1,9 @@
 ###############################################################################
 #
-# Makefile for project10 in Java
+# Makefile for project11 in Java
 #
 # Students:
-# Maayan Magenheim, ID 203237953, maayan.magenheim@mail.huji.ac.il
-# Shira Weitman, ID 314842519, shira.weitman@mail.huji.ac.il
+# Tom Saltsberg, ID 204241400, tom.saltsberg@mail.huji.ac.il
 #
 ###############################################################################
 
@@ -14,11 +13,11 @@ JAVACFLAGS=-encoding ISO-8859-1
 
 SRCS=*.java
 
-EXEC=JackAnalyzer
+EXEC=JackCompiler
 
 TAR=tar
 TARFLAGS=cvf
-TARNAME=project10.tar
+TARNAME=project11.tar
 TARSRCS=$(SRCS) $(EXEC) README Makefile
 
 all: compile 
