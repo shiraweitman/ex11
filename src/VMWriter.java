@@ -5,7 +5,8 @@ import java.io.IOException;
 
 public class VMWriter {
     private BufferedWriter bufferedWriter;
-    int labelCounter;
+    int whileCounter = -1;
+    int ifCounter = -1;
 
 
     VMWriter(File outputFile) throws IOException {
@@ -31,17 +32,17 @@ public class VMWriter {
     }
 
     public void WriteLabel(String label) throws IOException {
-        this.bufferedWriter.write("label "+ label + this.labelCounter);
+        this.bufferedWriter.write("label "+ label);
         this.bufferedWriter.newLine();
     }
 
     public void writeGoto(String label) throws IOException {
-        this.bufferedWriter.write("goto "+label+this.labelCounter);
+        this.bufferedWriter.write("goto "+label);
         this.bufferedWriter.newLine();
     }
 
     public void writeIf(String label) throws IOException {
-        this.bufferedWriter.write("if-goto "+label+labelCounter);
+        this.bufferedWriter.write("if-goto "+label);
         this.bufferedWriter.newLine();
     }
 
