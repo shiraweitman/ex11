@@ -26,7 +26,6 @@ class CompilationEngine {
     private boolean isConst;
     private boolean isMethod;
     private boolean lastOpFlg;
-    private ArrayList<String> opsArr = new ArrayList<>();
     private boolean whileFlag;
 
     CompilationEngine(File inputFile, File outputFile, File vmOutputFile) throws IOException {
@@ -269,7 +268,7 @@ class CompilationEngine {
             this.letArr = true;
             writePushVar(var);
 
-            writeToken("symbol", tokenizer.currentToken); // write: "["
+            writeToken("symbol", tokenizer.currentToken); // write: "[" var arr[3] = 3+1
 
             tokenizer.advance();
             CompileExpression();
@@ -279,15 +278,15 @@ class CompilationEngine {
             writeToken("symbol", tokenizer.currentToken); // write: "]"
             tokenizer.advance();
         }
+
         writeToken("symbol", tokenizer.currentToken); // write: =
 
         tokenizer.advance();
         CompileExpression();
-         if(isConst){
-             System.out.println(this.symbolTable.kindOf(var));;
-         }
 
-        if(!this.letArr && this.expArr){
+        writePopVar(var);
+
+        /*if(!this.letArr && this.expArr){
             //CompileExpression();
             writePopVar(var);
         }
@@ -312,16 +311,14 @@ class CompilationEngine {
 //            Set<String> keys = this.symbolTable.subroutineTable.keySet();
 //          for(String key: keys){
 //            System.out.println(key + " " + Arrays.toString(this.symbolTable.subroutineTable.get(key).toArray()));
-//          }
-            writePopVar(var);
+//          }*/
 
             //System.out.println("error in compile arr case");
-        }
+
 
         writeToken("symbol", tokenizer.currentToken); // write: ;
         tokenizer.advance();
         writeLine("</letStatement>");
-
     }
 
     /**
@@ -329,13 +326,15 @@ class CompilationEngine {
      */
     private void compileWhile() throws IOException {
         this.vmWriter.whileCounter++;
+        int curIdx =  this.vmWriter.whileCounter;
+
         writeLine("<whileStatement>");
         writeToken("keyword", tokenizer.currentToken); // write if/while
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write (
         tokenizer.advance();
 
-        this.vmWriter.WriteLabel("WHILE_EXP"+this.vmWriter.whileCounter);
+        this.vmWriter.WriteLabel("WHILE_EXP"+curIdx);
         CompileExpression();
 
         this.vmWriter.writeCommand(Command.NOT);
@@ -345,11 +344,11 @@ class CompilationEngine {
         writeToken("symbol", tokenizer.currentToken); // write {
         tokenizer.advance();
 
-        this.vmWriter.writeIf("WHILE_END"+this.vmWriter.whileCounter);
+        this.vmWriter.writeIf("WHILE_END"+curIdx);
         compileStatements();
 
-        this.vmWriter.writeGoto("WHILE_EXP"+this.vmWriter.whileCounter);
-        this.vmWriter.WriteLabel("WHILE_END"+this.vmWriter.whileCounter);
+        this.vmWriter.writeGoto("WHILE_EXP"+curIdx);
+        this.vmWriter.WriteLabel("WHILE_END"+curIdx);
 
         writeToken("symbol", tokenizer.currentToken); // write }
         tokenizer.advance();
@@ -367,7 +366,13 @@ class CompilationEngine {
         if (tokenizer.currentToken.equals(";")) {
             vmWriter.writePush(Segment.CONST, 0);
         } else {
-            CompileExpression();
+            if(tokenizer.currentToken.equals("this")) {
+                this.vmWriter.writePush(Segment.POINTER, 0);
+                tokenizer.advance();
+            }
+            else {
+                CompileExpression(); // todo check return val
+            }
         }
         this.vmWriter.writeReturn();
         writeToken("symbol", tokenizer.currentToken); // write: ;
@@ -460,14 +465,14 @@ class CompilationEngine {
      * compile single expression
      */
     private void CompileExpression() throws IOException {
+        ArrayList<String> opsArr = new ArrayList<>();
+
         writeLine("<expression>");
         this.expArr = false;
         if(tokenizer.currentToken.equals(")")){
             return;
         }
-//        if(tokenizer.currentToken.equals("position")){
-//            System.out.println(tokenizer.currentToken);
-//        }
+
         JackTokenizer.TOKEN_TYPE firstTokenType = tokenizer.currentTokenType;
         String firstToken = tokenizer.currentToken;
         tokenizer.advance();
@@ -479,12 +484,15 @@ class CompilationEngine {
 
             writeToken("symbol", tokenizer.currentToken); // write operation
             String lastOp = tokenizer.currentToken;
+            if(lastOp.equals("&lt;")){
+                System.out.println(lastOp);
+            }
 
             tokenizer.advance();
             if(!tokenizer.currentToken.equals("(")){
                 this.lastOpFlg = true;
             } else {
-                this.opsArr.add(lastOp);
+                opsArr.add(lastOp);
             }
 
             JackTokenizer.TOKEN_TYPE nextTokenType = tokenizer.currentTokenType;
@@ -496,12 +504,12 @@ class CompilationEngine {
             }
             this.lastOpFlg = false;
         }
-        Collections.reverse(this.opsArr);
-        for (String op : this.opsArr){
+        Collections.reverse(opsArr);
+        for (String op : opsArr){
             writeOperation(op);
             //System.out.println(op);
         }
-        this.opsArr.clear();
+        opsArr.clear();
         writeLine("</expression>");
     }
 
@@ -524,16 +532,29 @@ class CompilationEngine {
                 break;
             case KEYWORD:
 
-                this.vmWriter.writePush(Segment.CONST, 0);
-                if(firstToken.equals("true")) this.vmWriter.writeCommand(Command.NOT);
+                switch (firstToken) {
+                    case "null":
+                    case "false":
+                        vmWriter.writePush(Segment.CONST, 0);
+                        break;
+                    case "true":
+                        vmWriter.writePush(Segment.CONST, 0);
+                        vmWriter.writeCommand(Command.NOT); // todo maybe neg
+                        break;
+                    case "this":
+                        vmWriter.writePush(Segment.POINTER, 0);
+                        break;
+                }
+
+/*                this.vmWriter.writePush(Segment.CONST, 0);
+                if(firstToken.equals("true")) this.vmWriter.writeCommand(Command.NOT);*/
 
                 writeToken("keyword", firstToken);
                 break;
-            case IDENTIFIER:
 
+            case IDENTIFIER:
                 writeToken("identifier", firstToken); // varName
                 //System.out.println(firstToken);
-                if(!isClass(firstToken)) writePushVar(firstToken);
                 if(tokenizer.currentToken.equals("[")){
                     this.expArr = true;
 
@@ -553,14 +574,15 @@ class CompilationEngine {
                     this.currentSubroutine = "";
                 }
                 else if(tokenizer.currentToken.equals(")")){
+                    writePushVar(firstToken);
                     break;
 
                 } else if(tokenizer.currentToken.equals(",")){
+                    writePushVar(firstToken);
                     break;
                 } else {
                     //System.out.println("I'M IN ELSE INSIDE COMPILE TERM - IDENTIFIER");
-                    //writePushVar(firstToken);
-
+                    writePushVar(firstToken);
                 }
                 break;
 
@@ -702,8 +724,8 @@ class CompilationEngine {
                 }
             }
         }
-        //System.out.println(this.symbolTable.isInTable(this.currentSubroutine));
-        if(this.symbolTable.isInTable(this.currentSubroutine)) currentNargs++;
+        // System.out.println(this.symbolTable.isInTable(this.currentSubroutine));
+        if(this.symbolTable.isInTable(this.currentSubroutine) ) currentNargs++;
         writeLine("</expressionList>");
     }
 
@@ -777,7 +799,7 @@ class CompilationEngine {
                     +"."+ subName, this.currentNargs);
         } else {
             vmWriter.writePush(Segment.POINTER, 0);
-            vmWriter.writeCall( this.currentSubroutine, this.currentNargs);
+            vmWriter.writeCall( this.symbolTable.className+"."+this.currentSubroutine, this.currentNargs+1);
         }
 
         writeToken("symbol", tokenizer.currentToken); // write ")"
