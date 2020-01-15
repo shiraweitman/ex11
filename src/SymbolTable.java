@@ -1,9 +1,9 @@
 import java.util.ArrayList;
 import java.util.Hashtable;
 
-public class SymbolTable {
-    Hashtable<String, ArrayList<String>> classTable;
-    Hashtable<String, ArrayList<String>> subroutineTable;
+class SymbolTable {
+    private Hashtable<String, ArrayList<String>> classTable;
+    private Hashtable<String, ArrayList<String>> subroutineTable;
     private int staticCounter;
     int fieldCounter;
     private int argsCounter;
@@ -76,7 +76,7 @@ public class SymbolTable {
      * @param name the giver var name
      * @return true if in table, false otherwise
      */
-    boolean isInTable(String name){
+    private boolean isInTable(String name){
         if(!this.subroutineTable.contains(name)){
             // return true if the class table contains the var, false otherwise
             return this.classTable.contains(name);

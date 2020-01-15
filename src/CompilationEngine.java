@@ -347,7 +347,9 @@ class CompilationEngine {
         if(tokenizer.currentToken.equals("else")){
             compileElse();
         }
+        this.vmWriter.WriteLabel("IF-OUT");
         writeLine("</ifStatement>");
+        this.vmWriter.labelCounter++;
     }
 
     /**
@@ -359,18 +361,21 @@ class CompilationEngine {
         writeToken("symbol", tokenizer.currentToken); // write (
         tokenizer.advance();
         CompileExpression();
-        this.vmWriter.writeCommand(Command.NOT);
+        this.vmWriter.writeCommand(Command.NOT); // negate the expression result
 
-        this.vmWriter.writeGoto("END-WHILE");
+        if(this.whileFlag) this.vmWriter.writeIf("END-WHILE"); // if the condition doesn't hold, get out
+        else this.vmWriter.writeIf("ELSE"); // if the condition hold goto ELSE
 
         writeToken("symbol", tokenizer.currentToken); // write )
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
         tokenizer.advance();
+
+        // if(!this.whileFlag) this.vmWriter.WriteLabel("IF"); // create the if label
         compileStatements();
 
         if(this.whileFlag) this.vmWriter.writeGoto("WHILE");
-        else this.vmWriter.writeGoto("IF");
+         else this.vmWriter.writeGoto("IF-OUT");
 
         writeToken("symbol", tokenizer.currentToken); // write }
         tokenizer.advance();
@@ -380,6 +385,7 @@ class CompilationEngine {
      * compile the else part
      */
     private void compileElse() throws IOException {
+        this.vmWriter.WriteLabel("ELSE");
         writeToken("keyword", tokenizer.currentToken); // write else
         tokenizer.advance();
         writeToken("symbol", tokenizer.currentToken); // write {
