@@ -264,27 +264,35 @@ class CompilationEngine {
         String var = tokenizer.currentToken;
 
         tokenizer.advance();
-        if (!tokenizer.currentToken.equals("=")){
+        if (tokenizer.currentToken.equals("[")){
+
             this.letArr = true;
-            writePushVar(var);
 
             writeToken("symbol", tokenizer.currentToken); // write: "[" var arr[3] = 3+1
 
             tokenizer.advance();
             CompileExpression();
+            writePushVar(var);
 
             vmWriter.writeCommand(Command.ADD);
 
             writeToken("symbol", tokenizer.currentToken); // write: "]"
             tokenizer.advance();
+            tokenizer.advance();
+            CompileExpression();
+            vmWriter.writePop(Segment.TEMP, 0);
+            vmWriter.writePop(Segment.POINTER, 1);
+            vmWriter.writePush(Segment.TEMP, 0);
+            vmWriter.writePop(Segment.THAT, 0);
+        } else {
+
+            writeToken("symbol", tokenizer.currentToken); // write: =
+
+            tokenizer.advance();
+            CompileExpression();
+
+            writePopVar(var);
         }
-
-        writeToken("symbol", tokenizer.currentToken); // write: =
-
-        tokenizer.advance();
-        CompileExpression();
-
-        writePopVar(var);
 
         /*if(!this.letArr && this.expArr){
             //CompileExpression();
@@ -513,6 +521,18 @@ class CompilationEngine {
         writeLine("</expression>");
     }
 
+    /**
+     * Compiles a String.
+     */
+    private void compileString(String string) throws IOException{
+        vmWriter.writePush(Segment.CONST, string.length());
+        vmWriter.writeCall("String.new", 1);
+        for (char character:string.toCharArray()) {
+            vmWriter.writePush(Segment.CONST, character);
+            vmWriter.writeCall("String.appendChar", 2);
+        }
+    }
+
 
     /**
      * compile single term
@@ -527,7 +547,7 @@ class CompilationEngine {
                 writeToken("integerConstant", firstToken);
                 break;
             case STRING_CONST:
-                // todo check this case
+                compileString(firstToken);
                 writeToken("stringConstant", firstToken);
                 break;
             case KEYWORD:
@@ -560,10 +580,13 @@ class CompilationEngine {
 
                     writeToken("symbol", tokenizer.currentToken); // write "["
                     tokenizer.advance();
+
                     CompileExpression();
+                    writePushVar(firstToken);
 
                     vmWriter.writeCommand(Command.ADD);
-
+                    this.vmWriter.writePop(Segment.POINTER, 1);
+                    this.vmWriter.writePush(Segment.THAT, 0);
 
                     writeToken("symbol", tokenizer.currentToken);  // write "]"
                     tokenizer.advance(); //
